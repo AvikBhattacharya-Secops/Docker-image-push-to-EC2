@@ -5,7 +5,7 @@ pipeline {
         GIT_REPO = 'https://github.com/AvikBhattacharya-Secops/Docker-image-push-to-EC2.git'
         EC2_HOST = '35.154.5.213'                     // Your Ubuntu EC2 instance
         EC2_USER = 'ubuntu'                          // Ubuntu EC2 default SSH user
-        SSH_CREDENTIALS_ID = 'nginx'                 // Jenkins stored SSH key ID
+        SSH_CREDENTIALS_ID = 'ec2'                 // Jenkins stored SSH key ID
         APP_DIR = 'docker_app'                       // App directory on EC2
         IMAGE_NAME = 'avikbhattacharya056/my-local-image'    // Docker image name on EC2
         IMAGE_TAG = 'latest'
