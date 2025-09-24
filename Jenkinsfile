@@ -7,7 +7,7 @@ pipeline {
         EC2_USER = 'ubuntu'                          // Ubuntu EC2 default SSH user
         SSH_CREDENTIALS_ID = 'nginx'                 // Jenkins stored SSH key ID
         APP_DIR = 'docker_app'                       // App directory on EC2
-        IMAGE_NAME = 'my-local-image'                // Docker image name on EC2
+        IMAGE_NAME = 'avikbhattacharya056/my-local-image'    // Docker image name on EC2
         IMAGE_TAG = 'latest'
     }
 
