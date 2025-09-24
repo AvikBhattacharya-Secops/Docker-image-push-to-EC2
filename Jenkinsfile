@@ -2,53 +2,55 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'yourdockerhubusername/yourapp:latest'
-        EC2_USER = 'ec2-user'
-        EC2_HOST = '35.154.5.213'
-        SSH_KEY = credentials('ec2-ssh-key') // Add your private key to Jenkins credentials
+        GIT_REPO = 'https://github.com/AvikBhattacharya-Secops/Docker-image-push-to-EC2.git'
+        EC2_HOST = '35.154.5.213'                     // Your Ubuntu EC2 instance
+        EC2_USER = 'ubuntu'                          // Ubuntu EC2 default SSH user
+        SSH_CREDENTIALS_ID = 'nginx'                 // Jenkins stored SSH key ID
+        APP_DIR = 'docker_app'                       // App directory on EC2
+        IMAGE_NAME = 'my-local-image'                // Docker image name on EC2
+        IMAGE_TAG = 'latest'
     }
 
     stages {
-        stage('Clone Repo') {
+        stage('Clone Repository') {
             steps {
-                git 'https://github.com/your/repo.git'
+                git branch: 'main', url: "${env.GIT_REPO}"
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Transfer & Deploy to EC2') {
             steps {
-                script {
-                    sh "docker build -t ${DOCKER_IMAGE} ."
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                sshagent (credentials: [SSH_CREDENTIALS_ID]) {
+                    script {
                         sh """
-                            echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
-                            docker push ${DOCKER_IMAGE}
+                        echo "📂 Cleaning old app directory on EC2..."
+                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} \\
+                            'rm -rf ${APP_DIR} && mkdir -p ${APP_DIR}'
+
+                        echo "📦 Transferring application files to EC2..."
+                        scp -o StrictHostKeyChecking=no -r * ${EC2_USER}@${EC2_HOST}:${APP_DIR}
+
+                        echo "🐳 Building and running Docker container on EC2..."
+                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << EOF
+                            cd ${APP_DIR}
+                            docker stop myapp || true
+                            docker rm myapp || true
+                            docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                            docker run -d -p 80:5000 --name myapp ${IMAGE_NAME}:${IMAGE_TAG}
+EOF
                         """
                     }
                 }
             }
         }
+    }
 
-        stage('Deploy to EC2') {
-            steps {
-                script {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} ${EC2_USER}@${EC2_HOST} << EOF
-                            docker pull ${DOCKER_IMAGE}
-                            docker stop myapp || true
-                            docker rm myapp || true
-                            docker run -d -p 80:5000 --name myapp ${DOCKER_IMAGE}
-                        EOF
-                    """
-                }
-            }
+    post {
+        success {
+            echo '✅ App deployed to EC2 (Ubuntu) successfully!'
+        }
+        failure {
+            echo '❌ Deployment failed. Please check the pipeline logs.'
         }
     }
 }
